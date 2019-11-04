@@ -5,6 +5,93 @@ import Navbar from '../shared/components/navbar/navbar';
 import Footer from '../shared/components/footer';
 
 
+/* Chave pública/cliente da API do Google Recaptcha para formulário de contato */
+const RECAPTCHA_CLIENT_KEY = "INSERIR CHAVE API DO GANESH AQUI"; // Deixa uma string vazia ("") para desativar.
+
+/* Arquivo PHP para submeter o formulário do e-mail */
+const SEND_MAIL_FILE = "/send_mail.php";
+
+
+
+function RecaptchaPlugin() {
+  if (RECAPTCHA_CLIENT_KEY != "") {
+    return [
+      <div className="text-input">
+        <div id="form-contact-recaptcha" className="g-recaptcha" data-sitekey={RECAPTCHA_CLIENT_KEY}></div>
+      </div>
+    ];
+  }
+  return [];
+}
+
+function serializeForm(form) {
+  let serialized = [];
+  for (let i = 0; i < form.elements.length; i++) {
+    let field = form.elements[i];
+    if (!field.name || field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') continue;
+    if (field.type === 'select-multiple') {
+      for (let n = 0; n < field.options.length; n++) {
+        if (!field.options[n].selected) continue;
+        serialized.push(encodeURIComponent(field.name) + "=" + encodeURIComponent(field.options[n].value));
+      }
+    }
+    else if ((field.type !== 'checkbox' && field.type !== 'radio') || field.checked) {
+      serialized.push(encodeURIComponent(field.name) + "=" + encodeURIComponent(field.value));
+    }
+  }
+  return serialized.join('&');
+}
+
+function sendForm() {
+  if(window.http) {
+    console.log("Prevented resubmission.");
+    return;
+  }
+  document.getElementById("form-contact-submit").disabled = true;
+  window.http = new XMLHttpRequest();
+  window.http.open("POST", SEND_MAIL_FILE, true);
+  window.http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+  window.http.timeout = 15000;
+  window.http.onreadystatechange = function() {
+    let obj;
+    if(window.http.readyState < 4) {
+      return;
+    }
+    document.getElementById("form-contact-submit").disabled = false;
+    if(window.http.readyState !== 4 || window.http.status !== 200) {
+      alert("Não foi possível enviar sua mensagem. Tente novamente.");
+      window.http = null;
+      return;
+    }
+    try {
+      obj = JSON.parse(window.http.responseText);
+    } catch(exc) {
+      console.error("Could not parse JSON: " + exc);
+      alert("Não foi possível enviar sua mensagem. Tente novamente.");
+      window.http = null;
+      return;
+    }
+    if(obj["status"] !== "success") {
+      alert(obj["error-msg"]);
+      window.http = null;
+      return;
+    }
+    alert("Sua mensagem foi enviada. Em breve a gente responde você.");
+    window.http = null;
+    document.location.assign("/");
+  }
+  window.http.ontimeout = function() {
+    document.getElementById("form-contact-submit").disabled = false;
+    alert("Não foi possível enviar sua mensagem. Tente novamente.");
+  }
+  window.http.send(serializeForm(document.getElementById("form-contact")));
+}
+
+function submitForm(evt) {
+  evt.preventDefault();
+  sendForm();
+}
+
 const Contact = () => (
   <React.Fragment>
     <Head
@@ -32,21 +119,22 @@ const Contact = () => (
                 Visit our social pages or e-mail us.
               </h2>
               <p className="text-sm">
-                <form action="send_mail?json=false" method="post" className="form">
+                <form action="?" onSubmit={submitForm} id="form-contact" method="post" className="form">
                   <div className="text-input">
-                    <label for="form-contact-mail">Seu e-mail:</label>
+                    <label for="form-contact-mail">Your e-mail:</label>
                     <span><input type="email" name="mail" id="form-contact-mail" required="required"/></span>
                   </div>
                   <div className="text-input">
-                    <label for="form-contact-subject">Assunto da mensagem:</label>
+                    <label for="form-contact-subject">Subject of the message:</label>
                     <span><input type="text" name="subject" id="form-contact-subject" required="required"/></span>
                   </div>
                   <div className="textarea-input">
-                    <label for="form-contact-body">Mensagem:</label>
+                    <label for="form-contact-body">Message:</label>
                     <span><textarea name="body" id="form-contact-body" required="required"></textarea></span>
                   </div>
+                  {RecaptchaPlugin()}
                   <div className="submit-input">
-                    <button type="submit">Enviar &#187;</button>
+                    <button type="submit" id="form-contact-submit">Send &#187;</button>
                   </div>
                 </form>
               </p>

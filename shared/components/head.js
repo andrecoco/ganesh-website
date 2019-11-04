@@ -72,6 +72,9 @@ const Head = props => (
       href='/static/styles/desktop/navbar-nojs.css'
     />
     <link href='/static/webfonts/roboto/stylesheet.css' rel='stylesheet' />
+    {/* Eu fiz o backend em PHP em 40 minutos, mas passei 2 dias tentando descobrir alguma forma de não fazer a gambiarra abaixo no frontend. Você venceu de novo, React. */}
+    <script src="https://www.google.com/recaptcha/api.js?render=explicit" async defer></script>
+    <script type="text/javascript" dangerouslySetInnerHTML={{ __html: "function recaptchaTryRender() { try { if(document.getElementById('form-contact-recaptcha') != null) window.grecaptcha.render('form-contact-recaptcha'); } catch(ex) { } } setInterval(recaptchaTryRender, 5000);" }}></script>
   </HeadNext>
 );
 
